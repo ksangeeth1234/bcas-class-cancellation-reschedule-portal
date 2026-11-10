@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCancellationRequest(data) {
+      return data.keys().hasAll(['department', 'program', 'module', 'batch', 'lecturer', 'dateOfCancellation', 'rescheduleDate', 'reason']) &&
+        data.department is string && data.department.size() <= 200 &&
+        data.program is string && data.program.size() <= 200 &&
+        data.module is string && data.module.size() <= 200 &&
+        data.batch is string && data.batch.size() <= 100 &&
+        data.lecturer is string && data.lecturer.size() <= 200 &&
+        data.dateOfCancellation is string && data.dateOfCancellation.size() <= 50 &&
+        data.rescheduleDate is string && data.rescheduleDate.size() <= 50 &&
+        data.reason is string && data.reason.size() <= 2000;
+    }
+
+    match /cancellation_requests/{requestId} {
+      allow get, list: if true;
+      allow create: if isValidId(requestId) && isValidCancellationRequest(request.resource.data);
+      allow update, delete: if isValidId(requestId);
+    }
+  }
+}

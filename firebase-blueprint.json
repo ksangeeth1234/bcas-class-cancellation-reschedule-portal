@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "cancellationRequest": {
+      "title": "Cancellation Request",
+      "description": "A lecture cancellation and reschedule request submitted by academic staff or coordinators",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the request"
+        },
+        "department": {
+          "type": "string",
+          "description": "Academic department name"
+        },
+        "program": {
+          "type": "string",
+          "description": "Academic programme name"
+        },
+        "module": {
+          "type": "string",
+          "description": "Course module name"
+        },
+        "batch": {
+          "type": "string",
+          "description": "Batch code, e.g. ACC315"
+        },
+        "lecturer": {
+          "type": "string",
+          "description": "Lecturer name"
+        },
+        "lecturerCode": {
+          "type": "string",
+          "description": "Staff ID code if known"
+        },
+        "dateOfCancellation": {
+          "type": "string",
+          "description": "Date the lecture is cancelled (YYYY-MM-DD)"
+        },
+        "rescheduleDate": {
+          "type": "string",
+          "description": "Proposed rescheduled date (YYYY-MM-DD)"
+        },
+        "coordinatorEmail": {
+          "type": "string",
+          "description": "Email address of the related coordinator"
+        },
+        "hodEmail": {
+          "type": "string",
+          "description": "Email address of the related Head of Department"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for cancellation"
+        },
+        "classroom": {
+          "type": "string",
+          "description": "Original classroom or facility"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the cancellation request (Pending, Approved, Rescheduled, Cancelled)"
+        },
+        "emailStatus": {
+          "type": "string",
+          "description": "Dispatch status of the automated email (Sent, Failed, Queued)"
+        },
+        "emailError": {
+          "type": "string",
+          "description": "Error details if email delivery failed"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp when the request was submitted"
+        },
+        "submittedBy": {
+          "type": "string",
+          "description": "Author or requester label"
+        }
+      },
+      "required": [
+        "department",
+        "program",
+        "module",
+        "batch",
+        "lecturer",
+        "dateOfCancellation",
+        "rescheduleDate",
+        "reason"
+      ]
+    }
+  },
+  "firestore": {
+    "/cancellation_requests/{requestId}": {
+      "schema": "cancellationRequest",
+      "description": "Collection storing all lecture cancellation and reschedule requests"
+    }
+  }
+}

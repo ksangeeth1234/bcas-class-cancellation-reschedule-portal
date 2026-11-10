@@ -1,0 +1,8 @@
+{
+  "name": "BCAS Class Cancellation & Reschedule Portal",
+  "description": "BCAS Campus automated lecture cancellation, rescheduling request portal, departmental email dispatch, and admin Excel report management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

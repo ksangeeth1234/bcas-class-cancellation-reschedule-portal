@@ -1,0 +1,40 @@
+[
+  {
+    "id": "BCAS-551148-VAS",
+    "department": "Department of Computing",
+    "program": "test",
+    "module": "test",
+    "batch": "78",
+    "lecturer": "Mr. Tharinda Kaushalya",
+    "dateOfCancellation": "2026-11-10",
+    "rescheduleDate": "2026-11-11",
+    "coordinatorEmail": "dulmini.a@bcas.lk",
+    "hodEmail": "sangeeth@bcas.lk",
+    "reason": "test",
+    "status": "Pending",
+    "emailStatus": "Sent",
+    "createdAt": "2026-11-10T09:22:31.148Z",
+    "emailMessageId": "<c40ff99f-5c1c-5e70-1579-c6aae556a776@gmail.com>",
+    "emailSentAt": "2026-11-10T09:22:34.439Z"
+  },
+  {
+    "id": "BCAS-295438-JO3",
+    "department": "Department of Computing",
+    "program": "HND TEST",
+    "module": "TEST",
+    "batch": "78",
+    "lecturer": "Mr. Tharinda Kaushalya",
+    "dateOfCancellation": "2026-11-10",
+    "rescheduleDate": "2026-11-12",
+    "coordinatorEmail": "ayeshwery@bcas.lk",
+    "hodEmail": "anees@bcas.lk",
+    "reason": "Cancel - TEST",
+    "classroom": "WEST 004 (27)",
+    "status": "Pending",
+    "emailStatus": "Sent",
+    "emailMessageId": "<bcas-outbox-295438@bcas.lk>",
+    "emailSentAt": "2026-11-10T09:05:00.000Z",
+    "createdAt": "2026-11-10T09:01:35.438Z",
+    "updatedAt": "2026-11-10T09:05:00.000Z"
+  }
+]
