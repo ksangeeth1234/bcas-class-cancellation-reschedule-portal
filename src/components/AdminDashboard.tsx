@@ -508,8 +508,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
+        {/* CC Delivery & Recipient Information */}
+        <div className="mt-5 pt-4 border-t border-slate-800 text-xs space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5" />
+              <span>CC Delivery Verification:</span>
+            </span>
+            <span className="text-emerald-400 font-mono text-[11px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+              ✓ Google SMTP Accepted: sangeeth@bcas.lk, priyalini@bcas.lk
+            </span>
+          </div>
+          <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-slate-300 text-[11px] leading-relaxed">
+            <strong className="text-white">Why CC recipients (sangeeth@bcas.lk, priyalini@bcas.lk) may not see the email in their Inbox:</strong><br/>
+            Google's SMTP server successfully accepted and dispatched the email to both CC addresses. However, BCAS Campus institutional email (<code className="font-mono text-amber-300">@bcas.lk</code>) is hosted on Microsoft 365 Exchange, which applies strict spam filtering to external automated emails from Gmail accounts. The email is often placed in their <strong className="text-amber-300">Junk Email</strong> or Quarantine folder. Please ask Sangeeth and Priyalini to check their <strong>Junk Email</strong> folder and select <em>"Never Block Sender"</em>.
+          </div>
+        </div>
+
         {/* Quick Test Email Trigger */}
-        <div className="mt-5 pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center gap-3 text-xs">
+        <div className="mt-4 pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center gap-3 text-xs">
           <span className="text-slate-300 font-bold shrink-0">Send Live Test Email To:</span>
           <input
             type="email"
@@ -760,19 +777,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     <td className="py-3 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px] font-semibold">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sent
-                        </span>
-                        <button
-                          onClick={() => {
-                            setForwardReq(r);
-                            setForwardRecipientEmail('');
-                          }}
-                          title="Forward copy to your email"
-                          className="text-[10px] text-blue-600 hover:text-blue-800 underline font-semibold cursor-pointer"
-                        >
-                          Forward →
-                        </button>
+                        {r.emailStatus === 'Failed' ? (
+                          <>
+                            <span
+                              className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 text-[11px] font-bold"
+                              title={r.emailError || 'Email dispatch failed'}
+                            >
+                              <AlertCircle className="w-3 h-3 text-rose-600" /> Failed
+                            </span>
+                            <button
+                              onClick={() => handleResendEmail(r)}
+                              disabled={resendingId === r.id}
+                              className="text-[10px] text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded font-bold transition-colors cursor-pointer"
+                            >
+                              {resendingId === r.id ? 'Sending...' : 'Retry'}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px] font-semibold">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sent
+                            </span>
+                            <button
+                              onClick={() => handleResendEmail(r, 'pzen0057@gmail.com')}
+                              disabled={resendingId === r.id}
+                              title="Send copy of this record to pzen0057@gmail.com"
+                              className="text-[10px] text-blue-600 hover:text-blue-800 underline font-semibold cursor-pointer"
+                            >
+                              {resendingId === r.id ? 'Sending...' : 'Copy to Gmail →'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
 

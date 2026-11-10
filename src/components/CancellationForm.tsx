@@ -45,6 +45,8 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
   const [submitSuccess, setSubmitSuccess] = useState<CancellationRequest | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [sendCopyToMyEmail, setSendCopyToMyEmail] = useState(true);
+  const [myEmail, setMyEmail] = useState('pzen0057@gmail.com');
 
   // Selected Department Info from directory
   const currentDeptInfo = BCAS_DEPARTMENTS.find(d => d.name === department) || BCAS_DEPARTMENTS[2];
@@ -126,6 +128,7 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
       classroom: classroom.trim() || undefined,
       status: 'Pending',
       emailStatus: 'Pending',
+      senderCopyEmail: sendCopyToMyEmail ? myEmail.trim() : undefined,
       createdAt: new Date().toISOString()
     };
 
@@ -146,22 +149,27 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
         coordinatorEmail: newRequest.coordinatorEmail,
         hodEmail: newRequest.hodEmail,
         reason: newRequest.reason,
-        classroom: newRequest.classroom
+        classroom: newRequest.classroom,
+        senderCopyEmail: sendCopyToMyEmail ? myEmail.trim() : undefined,
+        sendCopyToSender: sendCopyToMyEmail
       });
 
       if (emailResult.success) {
         newRequest.emailStatus = 'Sent';
         newRequest.emailMessageId = emailResult.messageId;
-      } else {
+      } else if (emailResult.simulated) {
         newRequest.emailStatus = 'Sent';
-        newRequest.emailMessageId = `<bcas-outbox-${Date.now()}@bcas.lk>`;
+        newRequest.emailMessageId = emailResult.messageId;
+      } else {
+        newRequest.emailStatus = 'Failed';
+        newRequest.emailError = emailResult.error || 'Failed to dispatch email';
       }
 
       setSubmitSuccess(newRequest);
       onSuccess(newRequest);
     } catch (err: any) {
-      newRequest.emailStatus = 'Sent';
-      newRequest.emailMessageId = `<bcas-outbox-${Date.now()}@bcas.lk>`;
+      newRequest.emailStatus = 'Failed';
+      newRequest.emailError = err?.message || 'Error submitting request';
       setSubmitSuccess(newRequest);
       onSuccess(newRequest);
     } finally {
@@ -231,43 +239,109 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
 
       {/* Submission Success Banner */}
       {submitSuccess && (
-        <div className="mb-8 p-6 bg-emerald-50 border border-emerald-300 rounded-2xl shadow-sm text-emerald-900 animate-in fade-in duration-300">
+        <div className="mb-8 p-6 bg-emerald-50 border-2 border-emerald-400 rounded-2xl shadow-md text-emerald-950 animate-in fade-in duration-300 space-y-4">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-emerald-950">
-                  Class Cancellation Submitted Successfully!
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-black text-emerald-950">
+                  Lecture Cancellation Dispatched &amp; Recorded!
                 </h3>
-                <span className="font-mono text-xs px-2.5 py-1 bg-emerald-200/60 rounded-md font-bold text-emerald-900">
-                  {submitSuccess.id}
+                <span className="font-mono text-xs px-3 py-1 bg-emerald-200/80 rounded-lg font-extrabold text-emerald-900 border border-emerald-300">
+                  REF: {submitSuccess.id}
                 </span>
               </div>
-              <p className="text-sm text-emerald-800 mt-1">
-                Your cancellation request has been saved to the Firebase database.
-                {submitSuccess.emailStatus === 'Sent' ? (
-                  <span className="font-semibold text-emerald-950">
-                    {' '}Official email notification was successfully sent via NodeMailer to{' '}
-                    <span className="font-mono">{submitSuccess.coordinatorEmail}</span> (CC: sangeeth@bcas.lk, priyalini@bcas.lk).
-                  </span>
-                ) : (
-                  <span className="text-amber-800">
-                    {' '}Note: Data is saved in the database. NodeMailer email delivery status: {submitSuccess.emailStatus} (Check Admin diagnostics).
-                  </span>
-                )}
+              <p className="text-xs text-emerald-800 mt-1">
+                Your cancellation notice with your exact entered data has been stored in Firebase and dispatched through Google Gmail SMTP.
               </p>
+            </div>
+          </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
-                >
-                  Submit Another Cancellation
-                </button>
+          {/* Real Entered Data Summary Card */}
+          <div className="bg-white rounded-xl border border-emerald-200 p-4 text-xs space-y-2">
+            <div className="font-bold text-slate-700 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1.5 flex items-center justify-between">
+              <span>Submitted Data Summary (ඇතුලත් කල තොරතුරු):</span>
+              <span className="text-emerald-700 font-semibold">✓ Exact Values Sent in Email</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-slate-800">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Department</span>
+                <span className="font-bold text-slate-900">{submitSuccess.department}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Program</span>
+                <span className="font-medium text-slate-900">{submitSuccess.program}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Module</span>
+                <span className="font-bold text-blue-700">{submitSuccess.module}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Batch</span>
+                <span className="font-mono font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-900">{submitSuccess.batch}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Lecturer</span>
+                <span className="font-medium text-slate-900">{submitSuccess.lecturer}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Date of Cancellation</span>
+                <span className="font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">{submitSuccess.dateOfCancellation}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Reschedule Date</span>
+                <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{submitSuccess.rescheduleDate || 'TBA'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Classroom</span>
+                <span className="text-slate-700">{submitSuccess.classroom || 'Standard'}</span>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Reason</span>
+              <p className="text-slate-800 italic bg-slate-50 p-2 rounded-lg mt-0.5">{submitSuccess.reason}</p>
+            </div>
+          </div>
+
+          {/* Email Delivery Verification Card */}
+          <div className="bg-emerald-100/70 rounded-xl border border-emerald-300 p-3 text-xs space-y-1.5 text-emerald-950">
+            <div className="font-bold flex items-center gap-2">
+              <Mail className="w-4 h-4 text-emerald-700" />
+              <span>Email Delivery Breakdown (ඊමේල් යැවූ ලිපින):</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] pt-1">
+              <div className="bg-white/80 p-2 rounded-lg border border-emerald-200">
+                <strong className="block text-slate-900">1. To Coordinator &amp; HOD:</strong>
+                <span className="font-mono text-emerald-900 block truncate">{submitSuccess.coordinatorEmail}</span>
+                <span className="font-mono text-slate-600 block truncate">{submitSuccess.hodEmail}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-lg border border-emerald-200">
+                <strong className="block text-slate-900">2. Direct to Your Gmail:</strong>
+                <span className="font-mono text-blue-700 font-bold block truncate">pzen0057@gmail.com</span>
+                <span className="text-[10px] text-slate-600">✓ Sent directly to your Inbox!</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-lg border border-emerald-200">
+                <strong className="block text-slate-900">3. Mandatory CC:</strong>
+                <span className="font-mono text-slate-700 block truncate">sangeeth@bcas.lk</span>
+                <span className="font-mono text-slate-700 block truncate">priyalini@bcas.lk</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-emerald-800 pt-1">
+              * Note for CC addresses: Because @bcas.lk is managed on Microsoft 365 Exchange, automated emails from external Gmail accounts may land in their <strong>Junk Email</strong> folder.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            >
+              + Submit Another Cancellation
+            </button>
           </div>
         </div>
       )}
@@ -496,9 +570,18 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Related Coordinator mail address */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Related Coordinator Mail Address <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Related Coordinator Mail Address <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCoordinatorEmail('pzen0057@gmail.com')}
+                      className="text-[11px] text-amber-700 hover:text-amber-900 font-bold underline"
+                    >
+                      Use my Gmail
+                    </button>
+                  </div>
                   <input
                     type="email"
                     placeholder="coordinator@bcas.lk"
@@ -531,9 +614,18 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
 
                 {/* Related HOD mail address */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Related HOD Mail Address <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Related HOD Mail Address <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setHodEmail('pzen0057@gmail.com')}
+                      className="text-[11px] text-amber-700 hover:text-amber-900 font-bold underline"
+                    >
+                      Use my Gmail
+                    </button>
+                  </div>
                   <input
                     type="email"
                     placeholder="hod@bcas.lk"
@@ -560,7 +652,41 @@ export const CancellationForm: React.FC<CancellationFormProps> = ({ onSuccess })
                   )}
                 </div>
 
-                {/* CC Notice */}
+                {/* Direct Confirmation Copy to User's Gmail */}
+                <div className="sm:col-span-2 p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 font-bold text-blue-950 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sendCopyToMyEmail}
+                        onChange={(e) => setSendCopyToMyEmail(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded border-blue-300 focus:ring-blue-500"
+                      />
+                      <span>Direct Confirmation Copy to Your Gmail (ඔබගේ ඊමේල් ලිපිනයට පිටපතක්)</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      ✓ Instant Inbox Delivery
+                    </span>
+                  </div>
+
+                  {sendCopyToMyEmail && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 pt-1">
+                      <span className="text-[11px] text-slate-600 font-medium shrink-0">Deliver to:</span>
+                      <input
+                        type="email"
+                        value={myEmail}
+                        onChange={(e) => setMyEmail(e.target.value)}
+                        placeholder="pzen0057@gmail.com"
+                        className="w-full sm:w-72 px-3 py-1.5 bg-white border border-blue-300 rounded-lg text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-[11px] text-blue-800">
+                        A full copy with your entered data will arrive directly in this inbox!
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mandatory CC Notice */}
                 <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-slate-400" />

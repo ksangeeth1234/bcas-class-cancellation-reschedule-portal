@@ -43,20 +43,29 @@ interface SmtpSettings {
   pass: string;
   mode: 'live' | 'simulated';
   autoFallback: boolean;
+  ccRecipients: string[];
 }
 
-// Default to simulated fallback until a 16-character Google App Password is provided
+// Default to live mode with Google App Password
 let smtpSettings: SmtpSettings = {
   user: process.env.GMAIL_USER || 'pzen0057@gmail.com',
   pass: process.env.GMAIL_PASS || 'gocfggyznhajvpuy',
   mode: 'live',
-  autoFallback: true
+  autoFallback: true,
+  ccRecipients: ['sangeeth@bcas.lk', 'priyalini@bcas.lk']
 };
 
 try {
   if (fs.existsSync(SMTP_CONFIG_FILE)) {
     const raw = fs.readFileSync(SMTP_CONFIG_FILE, 'utf-8');
-    smtpSettings = { ...smtpSettings, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    smtpSettings = {
+      ...smtpSettings,
+      ...parsed,
+      ccRecipients: Array.isArray(parsed.ccRecipients) && parsed.ccRecipients.length > 0
+        ? parsed.ccRecipients
+        : ['sangeeth@bcas.lk', 'priyalini@bcas.lk']
+    };
   }
 } catch (err) {
   console.warn('Could not read smtp_config.json, using defaults.', err);
@@ -110,17 +119,20 @@ app.get('/api/smtp-config', (_req: Request, res: Response) => {
     mode: smtpSettings.mode,
     autoFallback: smtpSettings.autoFallback,
     looksLikeAppPassword,
-    ccRecipients: CC_RECIPIENTS
+    ccRecipients: smtpSettings.ccRecipients || ['sangeeth@bcas.lk', 'priyalini@bcas.lk']
   });
 });
 
 // Update SMTP Configuration
 app.post('/api/smtp-config', (req: Request, res: Response) => {
-  const { user, pass, mode, autoFallback } = req.body;
+  const { user, pass, mode, autoFallback, ccRecipients } = req.body;
   if (user) smtpSettings.user = user.trim();
   if (pass !== undefined) smtpSettings.pass = pass.trim();
   if (mode === 'live' || mode === 'simulated') smtpSettings.mode = mode;
   if (typeof autoFallback === 'boolean') smtpSettings.autoFallback = autoFallback;
+  if (Array.isArray(ccRecipients) && ccRecipients.length > 0) {
+    smtpSettings.ccRecipients = ccRecipients.map((e: string) => e.trim()).filter(Boolean);
+  }
 
   persistSmtpConfig();
 
@@ -131,7 +143,8 @@ app.post('/api/smtp-config', (req: Request, res: Response) => {
       user: smtpSettings.user,
       mode: smtpSettings.mode,
       autoFallback: smtpSettings.autoFallback,
-      hasPass: Boolean(smtpSettings.pass)
+      hasPass: Boolean(smtpSettings.pass),
+      ccRecipients: smtpSettings.ccRecipients
     }
   });
 });
@@ -223,6 +236,15 @@ app.post('/api/send-email', async (req: Request, res: Response) => {
   if (hodEmail && hodEmail.trim() && !toList.includes(hodEmail.trim())) {
     toList.push(hodEmail.trim());
   }
+  if (req.body?.senderCopyEmail && req.body.senderCopyEmail.trim() && !toList.includes(req.body.senderCopyEmail.trim())) {
+    toList.push(req.body.senderCopyEmail.trim());
+  }
+  // Ensure the primary account owner / sender (pzen0057@gmail.com) always receives a direct copy
+  // in their primary inbox so they immediately see the real user-entered cancellation data
+  const primaryOwnerEmail = (smtpSettings.user || 'pzen0057@gmail.com').trim();
+  if (req.body?.sendCopyToSender !== false && primaryOwnerEmail && !toList.includes(primaryOwnerEmail)) {
+    toList.push(primaryOwnerEmail);
+  }
   if (toList.length === 0) {
     toList.push('automation@bcas.lk');
   }
@@ -237,7 +259,8 @@ app.post('/api/send-email', async (req: Request, res: Response) => {
     hour12: true
   });
 
-  const subject = `Class cancellation Approval Request to Coordinator - ${moduleName || 'Class'} (${batch || 'Batch'})`;
+  // Dynamic subject line clearly stating module, batch, and cancellation details
+  const subject = `[BCAS Class Cancellation] ${batch || 'Batch'} - ${moduleName || 'Class'} (${department || 'School'})`;
 
   // HTML template matching the exact reference screenshot
   const htmlContent = `
@@ -389,17 +412,39 @@ CC: ${CC_RECIPIENTS.join(', ')}
   // Attempt real SMTP dispatch
   try {
     const transporter = createMailTransporter();
+
+    // Determine CC addresses: allow req.body.cc or fallback to smtpSettings.ccRecipients
+    const activeCc: string[] = req.body?.cc && Array.isArray(req.body.cc) && req.body.cc.length > 0
+      ? req.body.cc
+      : (smtpSettings.ccRecipients || ['sangeeth@bcas.lk', 'priyalini@bcas.lk']);
+
+    // Clean and deduplicate recipient emails
+    const cleanToList = Array.from(new Set(toList.map((e: string) => e.trim()).filter(Boolean)));
+    const cleanCcList = Array.from(new Set(activeCc.map((e: string) => e.trim()).filter(Boolean))).filter((e: string) => !cleanToList.includes(e));
+
+    // Combine all recipients for explicit SMTP envelope so Gmail sends RCPT TO for each
+    const envelopeRecipients = Array.from(new Set([...cleanToList, ...cleanCcList]));
+
     const mailOptions = {
       from: `"BCAS Automation" <${smtpSettings.user}>`,
-      to: toList.join(', '),
-      cc: CC_RECIPIENTS.join(', '),
+      to: cleanToList,
+      cc: cleanCcList,
+      envelope: {
+        from: smtpSettings.user,
+        to: envelopeRecipients
+      },
       subject,
       text: textContent,
       html: htmlContent
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email dispatched successfully via Gmail SMTP:', info.messageId);
+    console.log('Email dispatched successfully via Gmail SMTP:', {
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      envelope: info.envelope
+    });
 
     if (requestId) {
       const existing = cancellations.find(c => c.id === requestId);
@@ -415,8 +460,11 @@ CC: ${CC_RECIPIENTS.join(', ')}
     res.json({
       success: true,
       messageId: info.messageId,
-      recipients: toList,
-      cc: CC_RECIPIENTS,
+      recipients: cleanToList,
+      cc: cleanCcList,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      envelope: info.envelope,
       subject
     });
   } catch (error: any) {

@@ -48,10 +48,16 @@ const COLLECTION_NAME = 'cancellation_requests';
 
 // Create a new cancellation request in Firestore and sync with server
 export async function createCancellationRequest(request: CancellationRequest): Promise<CancellationRequest> {
-  // 1. Save to Firebase Firestore
+  // 1. Save to Firebase Firestore (strip undefined values to avoid Firestore Unsupported field error)
   try {
+    const cleanDocData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(request)) {
+      if (value !== undefined) {
+        cleanDocData[key] = value;
+      }
+    }
     const docRef = doc(db, COLLECTION_NAME, request.id);
-    await setDoc(docRef, request);
+    await setDoc(docRef, cleanDocData);
     console.log('Saved to Firestore document:', request.id);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${COLLECTION_NAME}/${request.id}`);
@@ -120,8 +126,14 @@ export async function updateCancellationStatus(
   updates: Partial<CancellationRequest>
 ): Promise<void> {
   try {
+    const cleanUpdates: Record<string, any> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        cleanUpdates[key] = value;
+      }
+    }
     const docRef = doc(db, COLLECTION_NAME, id);
-    await updateDoc(docRef, updates);
+    await updateDoc(docRef, cleanUpdates);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${id}`);
   }

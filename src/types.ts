@@ -20,6 +20,7 @@ export interface CancellationRequest {
   createdAt: string;
   updatedAt?: string;
   submittedBy?: string;
+  senderCopyEmail?: string;
 }
 
 export interface EmailDispatchPayload {
@@ -35,4 +36,7 @@ export interface EmailDispatchPayload {
   hodEmail: string;
   reason: string;
   classroom?: string;
+  cc?: string[];
+  senderCopyEmail?: string;
+  sendCopyToSender?: boolean;
 }

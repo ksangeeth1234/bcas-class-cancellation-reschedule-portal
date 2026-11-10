@@ -72,6 +72,12 @@ app.post('/api/send-email', async (req: Request, res: Response) => {
   if (hodEmail && hodEmail.trim() && !toList.includes(hodEmail.trim())) {
     toList.push(hodEmail.trim());
   }
+  if (req.body?.senderCopyEmail && req.body.senderCopyEmail.trim() && !toList.includes(req.body.senderCopyEmail.trim())) {
+    toList.push(req.body.senderCopyEmail.trim());
+  }
+  if (req.body?.sendCopyToSender !== false && SMTP_USER && !toList.includes(SMTP_USER.trim())) {
+    toList.push(SMTP_USER.trim());
+  }
   if (toList.length === 0) {
     toList.push('automation@bcas.lk');
   }
@@ -86,7 +92,7 @@ app.post('/api/send-email', async (req: Request, res: Response) => {
     hour12: true
   });
 
-  const subject = `Class cancellation Approval Request to Coordinator - ${moduleName || 'Class'} (${batch || 'Batch'})`;
+  const subject = `[BCAS Class Cancellation] ${batch || 'Batch'} - ${moduleName || 'Class'} (${department || 'School'})`;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -133,14 +139,22 @@ app.post('/api/send-email', async (req: Request, res: Response) => {
 
   try {
     const transporter = createMailTransporter();
+    const cleanToList = Array.from(new Set(toList.map((e: string) => e.trim()).filter(Boolean)));
+    const cleanCcList = Array.from(new Set(CC_RECIPIENTS.map((e: string) => e.trim()).filter(Boolean))).filter((e: string) => !cleanToList.includes(e));
+    const allEnvelope = Array.from(new Set([...cleanToList, ...cleanCcList]));
+
     const info = await transporter.sendMail({
       from: `"BCAS Automation" <${SMTP_USER}>`,
-      to: toList.join(', '),
-      cc: CC_RECIPIENTS.join(', '),
+      to: cleanToList,
+      cc: cleanCcList,
+      envelope: {
+        from: SMTP_USER,
+        to: allEnvelope
+      },
       subject,
       html: htmlContent
     });
-    res.json({ success: true, messageId: info.messageId });
+    res.json({ success: true, messageId: info.messageId, accepted: info.accepted });
   } catch (error: any) {
     // If standard password fails due to Google 535 BadCredentials, provide graceful virtual fallback
     const simulatedMsgId = `<bcas-sim-${Date.now()}@bcas.lk>`;
